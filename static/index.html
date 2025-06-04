@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScaleX WebUI - AI Image Upscaler</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon"
+        href="data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' class='grad-start'/%3E%3Cstop offset='100%25' class='grad-end'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M20,70 Q20,50 40,50 L60,50 Q80,50 80,70 L80,80 L70,90 L30,90 L20,80 Z' fill='url(%23g)' /%3E%3Cpath d='M30,40 Q30,20 50,20 Q70,20 70,40 L70,75 L60,85 L50,75 L50,50 L60,40 L40,40 L30,50Z' fill='url(%23g)' opacity='0.7'/%3E%3Ccircle cx='50' cy='35' r='8' fill='%23fff' /%3E%3C/svg%3E">
+    <script type="module" src="https://cdn.jsdelivr.net/npm/img-comparison-slider@8/dist/index.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/img-comparison-slider@8/dist/style.css" />
+</head>
+
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container"><i class="fa-solid fa-wand-magic-sparkles logo-icon"></i></div>
+                <div class="app-title-version">
+                    <h1>ScaleX</h1>
+                    <span class="app-subtitle">AI Image Enhancement Suite</span>
+                    <span class="app-version">v{{ app_version }}</span>
+                </div>
+                <button type="button" id="settingsBtn" class="header-action-btn" title="Settings">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+
+            <div id="sidebarMainContent"> <!-- Wrapper for main sidebar content -->
+                <form id="scalexForm" class="sidebar-form">
+                    <div class="sidebar-step">
+                        <h3><i class="fas fa-sliders form-icon"></i> Basic Settings</h3>
+                        <input type="hidden" name="face_enhance_model" id="faceEnhanceModelHidden">
+                        <input type="hidden" name="bg_enhance_model" id="bgEnhanceModelHidden">
+                        <input type="hidden" name="overall_upscale" id="overallUpscaleHidden" value="2">
+
+                        <div class="form-group">
+                            <label>Face Enhance Model:</label>
+                            <div class="custom-select-buttons" id="faceEnhanceModelButtons"
+                                data-target-hidden="faceEnhanceModelHidden"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Background Enhance Model:</label>
+                            <div class="custom-select-buttons" id="bgEnhanceModelButtons"
+                                data-target-hidden="bgEnhanceModelHidden"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Upscale Factor:</label>
+                            <div class="custom-select-buttons" id="overallUpscaleButtons"
+                                data-target-hidden="overallUpscaleHidden">
+                            </div>
+                        </div>
+                        <small id="originalImageInfo">Original: ?x?</small>
+                    </div>
+
+                    <div class="sidebar-step collapsible-section">
+                        <button type="button" class="collapsible-header">
+                            <h3><i class="fas fa-cogs form-icon"></i> Advanced Settings</h3>
+                            <span class="collapsible-icon"><i class="fas fa-chevron-down"></i></span>
+                        </button>
+                        <div class="collapsible-content">
+                            <input type="hidden" name="device" id="deviceHidden"><input type="hidden" name="output_ext"
+                                id="outputExtHidden">
+                            <div class="form-group"><label>Device:</label>
+                                <div class="custom-select-buttons" id="deviceButtons" data-target-hidden="deviceHidden">
+                                </div>
+                            </div>
+                            <div class="form-group"><label>Format:</label>
+                                <div class="custom-select-buttons" id="outputExtButtons"
+                                    data-target-hidden="outputExtHidden"></div>
+                            </div>
+                            <div class="form-group"><label for="bgTileSize">BG Tile (0=auto):</label><input
+                                    type="number" id="bgTileSize" name="bg_tile_size" value="400" min="0"></div>
+                            <div class="form-group"><label for="outputSuffix">Suffix (opt.):</label><input type="text"
+                                    id="outputSuffix" name="output_suffix" placeholder="e.g., _enhanced"></div>
+                            <div class="form-group"><label for="fidelityWeight">Fidelity (0-1 opt.):</label><input
+                                    type="number" id="fidelityWeight" name="fidelity_weight" placeholder="e.g., 0.5"
+                                    min="0" max="1" step="0.05"></div>
+                            <p class="sub-label"><i class="fas fa-microchip form-icon-inline"></i> Processing Tweaks:
+                            </p>
+                            <label class="custom-checkbox-label"><input type="checkbox" id="centerFaceOnly"
+                                    name="center_face_only"><span class="custom-checkbox-checkmark"></span> Only Center
+                                Face</label>
+                            <label class="custom-checkbox-label"><input type="checkbox" id="alignedInput"
+                                    name="aligned_input"><span class="custom-checkbox-checkmark"></span> Input is
+                                Pre-aligned</label>
+                            <hr class="separator">
+                            <p class="sub-label"><i class="fas fa-save form-icon-inline"></i> Save Options:</p>
+                            <label class="custom-checkbox-label"><input type="checkbox" id="saveCropped"
+                                    name="save_cropped"><span class="custom-checkbox-checkmark"></span> Cropped
+                                Faces</label>
+                            <label class="custom-checkbox-label"><input type="checkbox" id="saveRestored"
+                                    name="save_restored"><span class="custom-checkbox-checkmark"></span> Restored
+                                Faces</label>
+                            <label class="custom-checkbox-label"><input type="checkbox" id="saveComparison"
+                                    name="save_comparison"><span class="custom-checkbox-checkmark"></span>
+                                Comparisons</label>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-step process-action-step">
+                        <small id="upscaledImageInfo">ScaleX to ?x?</small>
+                        <button type="button" id="submitBtn" class="sidebar-button" disabled><i
+                                class="fas fa-rocket button-icon"></i> ScaleX It!</button>
+                    </div>
+                </form>
+                <footer class="sidebar-footer">
+                    <p>ScaleX © <span id="currentYear"></span></p>
+                </footer>
+            </div> <!-- End #sidebarMainContent -->
+
+            <div id="sidebarSettingsNav" style="display: none;"> <!-- For settings navigation -->
+                <!-- JS will populate this with nav items from #settingsNavListToClone -->
+            </div>
+        </aside>
+
+        <main class="main-panel">
+            <input type="file" id="inputFile" accept="image/png, image/jpeg, image/webp, image/bmp, image/tiff"
+                style="display: none;">
+
+            <div id="initialView" class="view-panel active">
+                <div class="drop-area-content" id="dropAreaTarget">
+                    <i class="fas fa-cloud-upload-alt drop-icon"></i>
+                    <h2>Select or Drop an Image</h2>
+                    <p>Click here or Drag & drop your image to begin.</p>
+                </div>
+            </div>
+
+            <div id="imageDisplayView" class="view-panel image-display-container">
+                <img id="displayedImage" src="#" alt="Image">
+                <div id="processingOverlay" class="processing-overlay">
+                    <div class="processing-content">
+                        <div class="spinner"></div>
+                        <h2>Processing...</h2>
+                        <p id="statusText">Doing the ScaleX magic...</p>
+                        <div class="progress-bar-container">
+                            <div id="progressBar" class="progress-bar">0%</div>
+                        </div>
+                        <div id="tileProgressText" style="display:none;">BG Tiling: 0/0</div>
+                    </div>
+                </div>
+                <div id="resultActionsOverlay" class="result-actions-overlay">
+                    <button type="button" id="viewComparisonBtn" class="overlay-button"><i
+                            class="fas fa-columns button-icon"></i> Compare</button>
+                    <a id="downloadResultLink" href="#" class="overlay-button" download><i
+                            class="fas fa-download button-icon"></i> Download</a>
+                    <button type="button" id="startOverBtnMain" class="overlay-button"><i
+                            class="fas fa-sync-alt button-icon"></i> Re-Process</button>
+                </div>
+            </div>
+
+            <div id="comparisonView" class="view-panel comparison-view-container">
+                <button type="button" id="closeComparisonBtn" class="close-view-button"><i
+                        class="fas fa-times"></i></button>
+                <img-comparison-slider class="slider-with-custom-handle">
+                    <img slot="first" id="originalComparisonImage" src="#" alt="Original">
+                    <img slot="second" id="processedComparisonImage" src="#" alt="Processed">
+                    <div slot="handle" class="comparison-handle"><i class="fas fa-arrows-alt-h"></i></div>
+                </img-comparison-slider>
+            </div>
+
+            <!-- Settings Content Area Structure (to be shown in main-panel) -->
+            <div id="settingsContentArea" class="settings-content-area" style="display:none;">
+                <h2 id="settingsContentTitle">Application Settings</h2> <!-- Title for settings in main panel -->
+                <!-- JS will populate this with active tab content from #settingsTabsToClone -->
+            </div>
+
+
+            <div id="errorDisplayArea" class="view-panel error-display-container" style="display:none;">
+                <i class="fas fa-exclamation-triangle error-icon"></i>
+                <h4>Error Occurred</h4>
+                <pre id="errorText"></pre>
+                <button type="button" id="errorOkBtn" class="sidebar-button secondary-action">OK</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Templates for settings (will be hidden and cloned by JS) -->
+    <div id="settingsNavListToClone" style="display: none;">
+        <ul>
+            <li><button class="settings-nav-btn active" data-target-tab="settingsLogs"><i
+                        class="fas fa-clipboard-list"></i> Task Logs</button></li>
+            <li><button class="settings-nav-btn" data-target-tab="settingsThemes"><i class="fas fa-palette"></i>
+                    Themes</button></li>
+            <li><button class="settings-nav-btn" data-target-tab="settingsSystemInfo"><i class="fas fa-info-circle"></i>
+                    System Info</button></li>
+            <li><button class="settings-nav-btn" data-target-tab="settingsOutput"><i class="fas fa-folder-open"></i>
+                    Output</button></li>
+            <li><button class="settings-nav-btn" data-target-tab="settingsActions"><i class="fas fa-power-off"></i>
+                    Actions</button></li>
+        </ul>
+    </div>
+
+    <div id="settingsTabsToClone" style="display: none;">
+        <div id="settingsLogs" class="settings-tab-content active">
+            <h3><i class="fas fa-clipboard-list form-icon-inline"></i> Task Logs</h3>
+            <p>Logs for the most recent processing task.</p>
+            <pre id="fullLogOutput"></pre>
+        </div>
+        <div id="settingsThemes" class="settings-tab-content">
+            <h3><i class="fas fa-palette form-icon-inline"></i> Themes</h3>
+            <p>Theme selection will be available in a future update.</p>
+            <div class="theme-swatch current-theme">
+                <div class="swatch-color" style="background: var(--neon-rose);"></div>
+                Neon Rose Light (Current)
+            </div>
+        </div>
+        <div id="settingsSystemInfo" class="settings-tab-content">
+            <h3><i class="fas fa-info-circle form-icon-inline"></i> System Information</h3>
+            <div id="systemInfoContent">
+                <p>Loading system info...</p>
+            </div>
+        </div>
+        <div id="settingsOutput" class="settings-tab-content">
+            <h3><i class="fas fa-folder-open form-icon-inline"></i> Output Configuration</h3>
+            <p><strong>Current Default Output Folder:</strong> <code id="defaultOutputFolderDisplay">N/A</code></p>
+            <div class="form-group">
+                <label for="customOutputDirectory">Set Custom Default Output Folder:</label>
+                <input type="text" id="customOutputDirectory" name="custom_output_directory"
+                    placeholder="/path/to/your/preferred/output">
+            </div>
+            <button type="button" id="saveOutputDirectoryBtn" class="sidebar-button secondary-action">
+                <i class="fas fa-save button-icon"></i> Save Path
+            </button>
+            <p id="outputDirStatus" class="small-status"></p>
+            <p><small>(The application will create task-specific subfolders inside this path. Ensure the backend has
+                    write permissions.)</small></p>
+        </div>
+        <div id="settingsActions" class="settings-tab-content">
+            <h3><i class="fas fa-power-off form-icon-inline"></i> Application Actions</h3>
+            <button type="button" id="restartBackendBtn" class="sidebar-button secondary-action"><i
+                    class="fas fa-sync-alt button-icon"></i> Restart Backend</button>
+            <p id="restartStatus" class="small-status"></p>
+            <hr class="separator">
+            <h4><i class="fas fa-trash-alt form-icon-inline"></i> Clear Cache</h4>
+            <button type="button" id="clearBackendDirsBtn" class="sidebar-button secondary-action danger-action">
+                <i class="fas fa-eraser button-icon"></i> Clear Working Directories
+            </button>
+            <p id="clearDirsStatus" class="small-status"></p>
+            <p><small>(This will delete all images from the WebUI's input and output folders on the server. This action
+                    is irreversible.)</small></p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>

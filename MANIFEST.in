@@ -1,0 +1,6 @@
+include inference_scalex.py
+include VERSION
+include LICENSE
+include requirements.txt
+include README.md
+include models/weights/README.md

@@ -1,0 +1,23 @@
+# pyproject.toml (Option A)
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel", "numpy"] # numpy was in setup_requires
+build-backend = "setuptools.build_meta"
+# NO backend-path line here
+
+[tool.isort]
+line_length = 120
+multi_line_output = 3
+known_first_party = "scalex"
+known_third_party = "basicsr,cv2,facexlib,numpy,pytest,realesrgan,rich,torch,torchvision,tqdm,typer,yaml"
+no_lines_before = "STDLIB,LOCALFOLDER"
+default_section = "THIRDPARTY"
+profile = "black"
+
+[tool.codespell]
+skip = ".git,./docs/build,*.pth,*.pt"
+count = ""
+quiet-level = 3
+
+[tool.pytest.ini_options]
+addopts = "tests/"

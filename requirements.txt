@@ -1,0 +1,16 @@
+torch>=2.1.0
+torchvision>=0.16.0
+basicsr>=1.4.2
+facexlib>=0.2.5
+lmdb
+numpy>=1.23
+opencv-python>=4.5
+pyyaml>=5.0
+scipy>=1.8
+tqdm
+tensorboard
+typer
+yapf
+realesrgan
+flask
+psutil
