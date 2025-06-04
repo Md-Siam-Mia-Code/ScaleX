@@ -6,6 +6,10 @@
 
 No CLI needed! ScaleX WebUI puts AI face restoration & image enhancement in your web browser. Powered by GFPGAN & Real-ESRGAN, now with a slick UI, live previews, & easy controls! 🚀
 
+<p align="center">
+  <img src="assets/WebUI.png" alt="ScaleX WebUI">
+</p>
+
 ## 🗂 Menu
 - 📖 [What's This?](#-whats-this)
 - ✨ [Awesome Features!](#-awesome-features)
