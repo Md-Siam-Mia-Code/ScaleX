@@ -1,9 +1,4 @@
 # webui_scalex.py
-# No changes needed in this file based on the latest request batch,
-# as the previous Python code for output directory and clearing seems correct.
-# The fixes are primarily in HTML structure, CSS, and JavaScript logic for UI behavior.
-# Re-pasting the previous Python code for completeness if it was expected.
-
 # Apply patches FIRST!
 try:
     import patches

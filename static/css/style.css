@@ -19,13 +19,9 @@
      --log-border: var(--medium-gray);
      --log-text-default: var(--text-color);
      --log-text-error: var(--neon-rose);
-     /* Error matches theme highlight */
      --log-text-warning: #d97706;
-     /* A visible warning yellow/orange */
      --log-text-info: var(--vibrant-purple);
-     /* Info matches theme highlight */
      --log-text-debug: #718096;
-     /* Muted gray for debug */
 }
 
 html {
@@ -39,7 +35,7 @@ html {
      box-sizing: inherit;
 }
 
-*{
+* {
      font-family: var(--font-family);
 }
 
@@ -491,7 +487,6 @@ small#upscaledImageInfo {
      width: 100%;
      height: 100%;
      display: none;
-     /* Base state: hidden */
      flex-direction: column;
      justify-content: center;
      align-items: center;
@@ -500,7 +495,6 @@ small#upscaledImageInfo {
 
 .view-panel.active {
      display: flex;
-     /* Active state: visible and flex */
 }
 
 #initialView .drop-area-content {
@@ -543,15 +537,11 @@ small#upscaledImageInfo {
      font-size: 1em;
 }
 
-/*FIX: .image-display-container only sets up flex content properties, relies on .view-panel.active for display:flex */
 .image-display-container {
+     /* This is #imageDisplayView */
      position: relative;
-     width: 100%;
-     height: 100%;
-     /* display: flex;  REMOVED - .view-panel.active handles this */
-     align-items: center;
-     /* These apply when display becomes flex */
-     justify-content: center;
+     /* For overlays */
+     /* It's a .view-panel, so width/height/display are handled by .view-panel & .active */
 }
 
 #displayedImage {
@@ -561,10 +551,12 @@ small#upscaledImageInfo {
      border-radius: var(--border-radius);
      box-shadow: var(--shadow);
      display: block;
+     /* To prevent extra space below if it's inline */
 }
 
 .processing-overlay {
      position: absolute;
+     /* Relative to imageDisplayView */
      top: 0;
      left: 0;
      width: 100%;
@@ -573,10 +565,12 @@ small#upscaledImageInfo {
      backdrop-filter: blur(5px);
      -webkit-backdrop-filter: blur(5px);
      display: none;
+     /* Shown by JS */
      flex-direction: column;
      justify-content: center;
      align-items: center;
      border-radius: var(--border-radius);
+     /* Match parent if parent is rounded */
      z-index: 20;
 }
 
@@ -636,9 +630,11 @@ small#upscaledImageInfo {
      background-image: var(--gradient);
      color: var(--white-ish);
      text-align: center;
-     line-height: 12px;
+     line-height: 22px;
+     /* Match height */
      font-size: 0.75em;
      border-radius: var(--border-radius);
+     /* Or remove if progress-bar-container handles it */
      transition: width 0.3s ease-in-out;
      display: flex;
      align-items: center;
@@ -653,11 +649,13 @@ small#upscaledImageInfo {
 
 .result-actions-overlay {
      position: absolute;
+     /* Relative to imageDisplayView */
      top: 0;
      left: 0;
      width: 100%;
      height: 100%;
      background-color: rgba(50, 50, 93, 0.0);
+     /* Initially transparent */
      display: flex;
      flex-direction: column;
      justify-content: center;
@@ -667,15 +665,21 @@ small#upscaledImageInfo {
      visibility: hidden;
      transition: opacity var(--transition-speed) ease-in-out, background-color var(--transition-speed);
      border-radius: var(--border-radius);
+     /* Match parent if parent is rounded */
      z-index: 20;
+     /* Same as processing overlay, or higher if needed */
      pointer-events: none;
+     /* Don't intercept clicks when hidden */
 }
 
+/* This class is added by JS on hover over #displayedImage when appropriate */
 .image-display-container.actions-visible .result-actions-overlay {
      opacity: 1;
      visibility: visible;
      background-color: rgba(50, 50, 93, 0.3);
+     /* Darken background on hover */
      pointer-events: auto;
+     /* Allow clicks on buttons */
 }
 
 .overlay-button {
@@ -713,38 +717,38 @@ small#upscaledImageInfo {
      color: inherit;
 }
 
-/* Comparison View */
-.comparison-view-container {
-     position: fixed;
-     top: 0;
-     left: 0;
-     width: 100vw;
-     height: 100vh;
-     background-color: rgba(240, 243, 248, 0.95);
-     backdrop-filter: blur(8px);
-     -webkit-backdrop-filter: blur(8px);
-     z-index: 100;
-     padding: 30px;
-     box-sizing: border-box;
-     /* display: none; Managed by JS .view-panel */
+/* Comparison View - Adjusted */
+#comparisonView {
+     /* ID of the comparison view panel */
+     position: relative;
+     /* For the close button to be positioned within it */
+     justify-content: stretch;
+     /* Make slider take full height/width available */
+     align-items: stretch;
+     /* It's a .view-panel, so display is handled by .view-panel and .view-panel.active */
+     /* No fixed positioning, no full viewport dimensions, no overlay background */
 }
 
-/* .comparison-view-container.active { display: flex; } Already handled by .view-panel.active */
 .close-view-button {
+     /* For the comparison view's close button */
      position: absolute;
-     top: 25px;
-     right: 25px;
+     top: 10px;
+     /* Adjust based on padding of main-panel or #comparisonView */
+     right: 10px;
+     /* Adjust based on padding of main-panel or #comparisonView */
      background-color: var(--white-ish);
      color: var(--text-color);
      border: 1px solid var(--medium-gray);
      border-radius: 50%;
-     width: 44px;
-     height: 44px;
-     font-size: 1.3em;
-     line-height: 40px;
+     width: 38px;
+     height: 38px;
+     font-size: 1.1em;
+     line-height: 1;
+     /* For better icon centering */
      cursor: pointer;
      box-shadow: var(--shadow);
-     z-index: 101;
+     z-index: 10;
+     /* Above the slider component */
      transition: all var(--transition-speed);
      display: flex;
      align-items: center;
@@ -757,11 +761,12 @@ small#upscaledImageInfo {
      color: var(--neon-rose);
 }
 
-.comparison-view-container img-comparison-slider {
+#comparisonView img-comparison-slider {
      width: 100%;
      height: 100%;
      border-radius: var(--border-radius);
-     box-shadow: var(--shadow);
+     /* box-shadow: var(--shadow); */
+     /* Optional, can remove for in-panel view */
      --divider-width: 3px;
      --divider-color: var(--neon-rose);
      --default-handle-opacity: 0.95;
@@ -772,12 +777,13 @@ small#upscaledImageInfo {
      --default-handle-border-width: 2px;
 }
 
-.comparison-view-container #originalComparisonImage,
-.comparison-view-container #processedComparisonImage {
+#comparisonView #originalComparisonImage,
+#comparisonView #processedComparisonImage {
      object-fit: contain;
+     height: 100vh;
 }
 
-.comparison-handle {
+#comparisonView .comparison-handle {
      width: 100%;
      height: 100%;
      display: flex;
@@ -787,9 +793,11 @@ small#upscaledImageInfo {
      font-size: 1.5em;
 }
 
+
 /* Settings Mode */
 .app-container.settings-mode-active .sidebar {
      width: 380px;
+     /* Or your preferred settings sidebar width */
 }
 
 .app-container.settings-mode-active #sidebarMainContent {
@@ -801,7 +809,6 @@ small#upscaledImageInfo {
      flex-grow: 1;
      overflow-y: auto;
      padding-top: 15px;
-     /* Space from header */
 }
 
 #sidebarSettingsNav ul {
@@ -849,19 +856,18 @@ small#upscaledImageInfo {
      text-align: center;
 }
 
-.app-container.settings-mode-active .main-panel {
-     padding: 25px 30px;
-}
-
 .settings-content-area {
-     width: 100%;
-     height: 100%;
-     display: none;
-     /* Managed by JS view-panel logic */
-     flex-direction: column;
+     /* This is #settingsContentArea */
+     /* It's a .view-panel, so width/height/display are handled by .view-panel & .active */
+     /* Align content to top and stretch for settings tabs */
+     justify-content: flex-start;
+     align-items: stretch;
+     padding: 20px;
+     /* Internal padding for settings content */
+     overflow-y: auto;
+     /* Scroll individual settings area if content overflows */
 }
 
-/* .settings-content-area.active { display: flex; } Handled by .view-panel.active */
 .settings-content-area h2#settingsContentTitle {
      color: var(--heading-color);
      font-weight: 600;
@@ -870,6 +876,10 @@ small#upscaledImageInfo {
      padding-bottom: 15px;
      display: flex;
      align-items: center;
+     width: 100%;
+     /* Take full width within settingsContentArea */
+     flex-shrink: 0;
+     /* Prevent title from shrinking */
 }
 
 .settings-content-area h2#settingsContentTitle .form-icon {
@@ -877,17 +887,16 @@ small#upscaledImageInfo {
 }
 
 .settings-tab-content {
-     display: none;
-     /* Individual tabs hidden by default */
+     /* display: none; Now handled by JS by adding/removing from DOM */
      flex-grow: 1;
      overflow-y: auto;
+     /* If a single tab's content is too long */
      padding-top: 15px;
+     width: 100%;
+     /* Take full width */
 }
 
-.settings-tab-content.active {
-     display: block;
-     /* Active tab shown */
-}
+/* .settings-tab-content.active { display: block; } Not needed if JS adds/removes the element */
 
 .settings-tab-content h3 {
      color: var(--heading-color);
@@ -920,13 +929,13 @@ small#upscaledImageInfo {
      font-size: 0.9em;
 }
 
-/* Log Beautification */
 #fullLogOutput {
      background-color: var(--log-bg);
      color: var(--log-text-default);
      padding: 15px;
      border-radius: var(--border-radius);
      max-height: 450px;
+     /* Or adjust as needed */
      overflow-y: auto;
      text-align: left;
      font-family: "SF Mono", "Consolas", "Menlo", monospace;
@@ -1003,7 +1012,7 @@ small#upscaledImageInfo {
      min-height: 1.2em;
 }
 
-/* Error Display Area */
+/* Error Display Area - Remains a full-screen overlay */
 .error-display-container {
      position: fixed;
      top: 0;
@@ -1016,10 +1025,9 @@ small#upscaledImageInfo {
      z-index: 200;
      padding: 30px;
      text-align: center;
-     /* display: none; Managed by .view-panel */
+     /* display: none; / .view-panel.active handles this */
 }
 
-/* .error-display-container.active { display: flex; } Handled by .view-panel.active */
 .error-display-container .error-icon {
      font-size: 3em;
      color: var(--neon-rose);
@@ -1068,7 +1076,8 @@ small#upscaledImageInfo {
      }
 
      .app-container.settings-mode-active .sidebar {
-          width: 220px;
+          width: 280px;
+          /* Adjust for smaller screens if needed */
      }
 }
 
@@ -1076,37 +1085,34 @@ small#upscaledImageInfo {
      .app-container {
           flex-direction: column;
           overflow-y: auto;
-          /* Allow body scroll on mobile */
+          height: auto;
+          /* Allow body to scroll */
      }
 
      .sidebar {
           width: 100% !important;
-          /* Override inline styles or !important */
           height: auto;
           max-height: none;
-          /* Allow sidebar to take content height */
           border-right: none;
           border-bottom: 1px solid var(--medium-gray);
           overflow-y: visible;
-          /* Disable sidebar scroll if app-container scrolls */
      }
 
      .main-panel {
           flex-grow: 1;
           padding: 15px;
           height: auto;
+          min-height: 400px;
+          /* Ensure some height */
           overflow-y: visible;
-          /* Disable main panel scroll if app-container scrolls */
      }
 
      .app-container.settings-mode-active .sidebar {
           max-height: none;
      }
 
-     /* Remove max-height in settings mode */
      .app-container.settings-mode-active #sidebarSettingsNav {
           max-height: none;
-          /* Allow full height */
           overflow-y: visible;
      }
 
@@ -1146,16 +1152,14 @@ small#upscaledImageInfo {
      }
 
      .close-view-button {
-          top: 15px;
-          right: 15px;
-          width: 38px;
-          height: 38px;
-          font-size: 1.1em;
+          top: 10px;
+          right: 10px;
+          width: 36px;
+          height: 36px;
+          font-size: 1em;
      }
 
-     .comparison-view-container {
-          padding: 15px;
-     }
+     /* #comparisonView styles are now relative, so media queries on .main-panel padding affect it */
 }
 
 @media (max-width: 480px) {
@@ -1227,6 +1231,5 @@ small#upscaledImageInfo {
           font-size: 0.8em;
           padding: 10px;
           max-height: 300px;
-          /* Adjust log height on small screens */
      }
 }

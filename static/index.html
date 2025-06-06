@@ -12,9 +12,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
         integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
         crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Link to your CSS file -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="icon"
-        href="data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' class='grad-start'/%3E%3Cstop offset='100%25' class='grad-end'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M20,70 Q20,50 40,50 L60,50 Q80,50 80,70 L80,80 L70,90 L30,90 L20,80 Z' fill='url(%23g)' /%3E%3Cpath d='M30,40 Q30,20 50,20 Q70,20 70,40 L70,75 L60,85 L50,75 L50,50 L60,40 L40,40 L30,50Z' fill='url(%23g)' opacity='0.7'/%3E%3Ccircle cx='50' cy='35' r='8' fill='%23fff' /%3E%3C/svg%3E">
+        href="data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='logoGrad1' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23FF0080;' /%3E%3Cstop offset='100%25' style='stop-color:%239370DB;' /%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23logoGrad1)' stroke='%23FFF' stroke-width='3' d='M60,20 C80,20 85,30 80,45 S60,60 50,60 S20,60 20,75 S30,90 50,90 S80,80 80,65' /%3E%3Cpolyline points='30,25 20,35 30,45' fill='none' stroke='url(%23logoGrad1)' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' /%3E%3Cpolyline points='70,75 80,65 70,55' fill='none' stroke='url(%23logoGrad1)' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' /%3E%3C/svg%3E">
     <script type="module" src="https://cdn.jsdelivr.net/npm/img-comparison-slider@8/dist/index.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/img-comparison-slider@8/dist/style.css" />
 </head>
@@ -23,18 +24,21 @@
     <div class="app-container">
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="logo-container"><i class="fa-solid fa-wand-magic-sparkles logo-icon"></i></div>
+                <div class="logo-container">
+                    <i class="fa-solid fa-wand-magic-sparkles logo-icon"></i>
+                </div>
                 <div class="app-title-version">
                     <h1>ScaleX</h1>
                     <span class="app-subtitle">AI Image Enhancement Suite</span>
-                    <span class="app-version">v{{ app_version }}</span>
+                    <!-- Replace with your actual app version or remove if not dynamic -->
+                    <span class="app-version">v1.0.0</span>
                 </div>
                 <button type="button" id="settingsBtn" class="header-action-btn" title="Settings">
                     <i class="fas fa-cog"></i>
                 </button>
             </div>
 
-            <div id="sidebarMainContent"> <!-- Wrapper for main sidebar content -->
+            <div id="sidebarMainContent">
                 <form id="scalexForm" class="sidebar-form">
                     <div class="sidebar-step">
                         <h3><i class="fas fa-sliders form-icon"></i> Basic Settings</h3>
@@ -115,10 +119,9 @@
                 <footer class="sidebar-footer">
                     <p>ScaleX © <span id="currentYear"></span></p>
                 </footer>
-            </div> <!-- End #sidebarMainContent -->
+            </div>
 
-            <div id="sidebarSettingsNav" style="display: none;"> <!-- For settings navigation -->
-                <!-- JS will populate this with nav items from #settingsNavListToClone -->
+            <div id="sidebarSettingsNav" style="display: none;">
             </div>
         </aside>
 
@@ -167,10 +170,8 @@
                 </img-comparison-slider>
             </div>
 
-            <!-- Settings Content Area Structure (to be shown in main-panel) -->
             <div id="settingsContentArea" class="settings-content-area" style="display:none;">
-                <h2 id="settingsContentTitle">Application Settings</h2> <!-- Title for settings in main panel -->
-                <!-- JS will populate this with active tab content from #settingsTabsToClone -->
+                <h2 id="settingsContentTitle">Application Settings</h2>
             </div>
 
 
@@ -183,7 +184,6 @@
         </main>
     </div>
 
-    <!-- Templates for settings (will be hidden and cloned by JS) -->
     <div id="settingsNavListToClone" style="display: none;">
         <ul>
             <li><button class="settings-nav-btn active" data-target-tab="settingsLogs"><i
@@ -249,7 +249,7 @@
                     is irreversible.)</small></p>
         </div>
     </div>
-
+    <!-- Link to your JS file -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 

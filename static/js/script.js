@@ -1,7 +1,3 @@
-// No changes to JS file for this specific request (fixing .image-display-container visibility).
-// The fix was purely in CSS by removing the conflicting `display: flex;` from `.image-display-container`.
-// Re-pasting the previous full JS for completeness.
-
 document.addEventListener('DOMContentLoaded', function () {
      // --- DOM Element Selectors ---
      const scalexForm = document.getElementById('scalexForm');
@@ -11,8 +7,6 @@ document.addEventListener('DOMContentLoaded', function () {
      const submitBtn = document.getElementById('submitBtn');
      const settingsBtn = document.getElementById('settingsBtn');
      const appContainer = document.querySelector('.app-container');
-     const mainSidebar = document.querySelector('.sidebar');
-     const mainPanel = document.querySelector('.main-panel');
      const sidebarMainContent = document.getElementById('sidebarMainContent');
      const sidebarSettingsNavContainer = document.getElementById('sidebarSettingsNav');
 
@@ -39,14 +33,12 @@ document.addEventListener('DOMContentLoaded', function () {
      const downloadResultLink = document.getElementById('downloadResultLink');
      const closeComparisonBtn = document.getElementById('closeComparisonBtn');
      const errorOkBtn = document.getElementById('errorOkBtn');
-     const startOverBtnMain = document.getElementById('startOverBtnMain'); // Now Re-Process
+     const startOverBtnMain = document.getElementById('startOverBtnMain');
 
-     // Settings related elements from templates
      const settingsNavListTemplate = document.getElementById('settingsNavListToClone');
      const settingsTabsTemplate = document.getElementById('settingsTabsToClone');
-     const settingsContentArea = document.getElementById('settingsContentArea'); // This is the main panel target
+     const settingsContentArea = document.getElementById('settingsContentArea');
      const settingsContentTitle = document.getElementById('settingsContentTitle');
-
 
      const errorText = document.getElementById('errorText');
 
@@ -55,7 +47,8 @@ document.addEventListener('DOMContentLoaded', function () {
      let originalImageObjectUrl = null;
      let originalImageName = "image.png";
      let originalImageDimensions = { w: 0, h: 0 };
-     let currentProcessedImagePath = null;
+     let currentProcessedImageRelativePath = null;
+     let currentFullProcessedImageUrl = null;
      let currentLogBuffer = [];
      let isSettingsActive = false;
      let activeSettingsTabContent = null;
@@ -70,8 +63,41 @@ document.addEventListener('DOMContentLoaded', function () {
      });
 
      function fetchConfigOptions() {
+          // Mocking backend response for local testing if /config_options is not available
+          const mockConfig = {
+               face_models: [{ value: "GFPGANv1.4", name: "GFPGANv1.4" }, { value: "CodeFormer", name: "CodeFormer" }],
+               default_face_model: "GFPGANv1.4",
+               bg_models: [{ value: "RealESRGAN_x4plus", name: "RealESRGAN x4+" }, { value: "RealESRGAN_x4plus_anime_6B", name: "ESRGAN Anime" }],
+               default_bg_model: "RealESRGAN_x4plus",
+               default_upscale: 2,
+               devices: ["auto", "cpu", "cuda"],
+               output_formats: ["auto", "png", "jpg", "webp"],
+               default_bg_tile: 400
+          };
+
+          const useMock = false; // Set to true to use mock data if backend isn't running
+
+          if (useMock) {
+               Promise.resolve(mockConfig).then(data => {
+                    createCustomSelectButtons('faceEnhanceModelButtons', data.face_models, data.default_face_model);
+                    createCustomSelectButtons('bgEnhanceModelButtons', data.bg_models, data.default_bg_model);
+                    const upscaleOptions = [{ value: "2", name: "2x" }, { value: "4", name: "4x" }, { value: "8", name: "8x" }];
+                    createCustomSelectButtons('overallUpscaleButtons', upscaleOptions, data.default_upscale.toString());
+                    createCustomSelectButtons('deviceButtons', data.devices.map(d => ({ value: d, name: d.toUpperCase() })), 'auto');
+                    createCustomSelectButtons('outputExtButtons', data.output_formats.map(f => ({ value: f, name: f.toUpperCase() })), 'auto');
+                    const bgTileSizeEl = document.getElementById('bgTileSize');
+                    if (bgTileSizeEl) bgTileSizeEl.value = data.default_bg_tile;
+                    updateUpscaledImageInfo();
+               });
+               return;
+          }
+
+
           fetch('/config_options')
-               .then(response => response.json())
+               .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+               })
                .then(data => {
                     createCustomSelectButtons('faceEnhanceModelButtons', data.face_models, data.default_face_model);
                     createCustomSelectButtons('bgEnhanceModelButtons', data.bg_models, data.default_bg_model);
@@ -92,6 +118,10 @@ document.addEventListener('DOMContentLoaded', function () {
           const hiddenInput = document.getElementById(hiddenInputId);
           if (!container || !hiddenInput) { console.error("Container or hidden input not found for", containerId); return; }
           container.innerHTML = '';
+          if (!Array.isArray(options)) {
+               console.error(`Options for ${containerId} is not an array:`, options);
+               options = []; // Prevent further errors
+          }
           options.forEach(option => {
                const button = document.createElement('button');
                button.type = 'button'; button.textContent = option.name; button.dataset.value = option.value;
@@ -132,20 +162,34 @@ document.addEventListener('DOMContentLoaded', function () {
                });
           });
 
-          if (imageDisplayView) {
-               imageDisplayView.addEventListener('mouseenter', () => {
-                    if (currentProcessedImagePath && processingOverlay.style.display !== 'flex' && !isSettingsActive) {
+          if (displayedImage && imageDisplayView && resultActionsOverlay) {
+               displayedImage.addEventListener('mouseenter', () => {
+                    if (currentFullProcessedImageUrl && processingOverlay.style.display !== 'flex' && !isSettingsActive) {
                          imageDisplayView.classList.add('actions-visible');
                     }
                });
+
                imageDisplayView.addEventListener('mouseleave', () => {
                     imageDisplayView.classList.remove('actions-visible');
                });
+          } else {
+               console.error("Error setting up hover listeners: One or more elements (displayedImage, imageDisplayView, resultActionsOverlay) not found.");
           }
      }
 
      function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
      function handleDrop(e) { let dt = e.dataTransfer; let files = dt.files; if (files.length > 0) { inputFile.files = files; handleImageSelection({ target: inputFile }); } }
+
+     function clearProcessedImageData() {
+          console.log("Clearing processed image data.");
+          if (processedComparisonImage) processedComparisonImage.src = '#';
+          currentProcessedImageRelativePath = null;
+          currentFullProcessedImageUrl = null;
+          if (downloadResultLink) {
+               downloadResultLink.href = "#";
+               downloadResultLink.removeAttribute('download');
+          }
+     }
 
      function handleImageSelection(event) {
           const file = event.target.files[0];
@@ -154,7 +198,13 @@ document.addEventListener('DOMContentLoaded', function () {
                originalImageName = file.name;
                if (originalImageObjectUrl) URL.revokeObjectURL(originalImageObjectUrl);
                originalImageObjectUrl = URL.createObjectURL(file);
-               displayedImage.src = originalImageObjectUrl; originalComparisonImage.src = originalImageObjectUrl;
+
+               console.log("New image selected. Original Object URL:", originalImageObjectUrl);
+               displayedImage.src = originalImageObjectUrl;
+               originalComparisonImage.src = originalImageObjectUrl;
+
+               clearProcessedImageData();
+
                const img = new Image();
                img.onload = () => {
                     originalImageDimensions.w = img.width; originalImageDimensions.h = img.height;
@@ -162,11 +212,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     updateUpscaledImageInfo();
                };
                img.src = originalImageObjectUrl;
-               resetProcessingUIStates(); hideResultActionsOverlay();
+
+               resetProcessingUIStates();
+               hideResultActionsOverlay();
                currentLogBuffer = [];
                const fullLogOutputEl = settingsContentArea.querySelector('#fullLogOutput');
                if (fullLogOutputEl) fullLogOutputEl.innerHTML = '';
-               switchToView('imageDisplayView'); submitBtn.disabled = false;
+
+               switchToView('imageDisplayView');
+               submitBtn.disabled = false;
                startOverBtnMain.disabled = false;
           }
      }
@@ -192,7 +246,12 @@ document.addEventListener('DOMContentLoaded', function () {
                }
           }
           if (isSettingsActive) toggleSettingsMode();
-          switchToView('imageDisplayView'); showProcessingOverlay(true); hideResultActionsOverlay();
+
+          clearProcessedImageData();
+
+          switchToView('imageDisplayView');
+          showProcessingOverlay(true);
+          hideResultActionsOverlay();
           submitBtn.disabled = true; startOverBtnMain.disabled = true;
           statusText.textContent = 'Uploading & Preparing...';
           progressBar.style.width = '0%'; progressBar.textContent = '0%';
@@ -205,23 +264,27 @@ document.addEventListener('DOMContentLoaded', function () {
           if (inputFile.files[0]) {
                formData.append('inputFile', inputFile.files[0]);
           } else if (originalImageObjectUrl && originalImageName) {
-               // For re-processing, the file might not be in inputFile.files.
-               // This relies on the backend being able to re-fetch/re-use the uploaded file if only form data is sent.
-               // Or, a more complex solution to re-construct File object from blob URL (not done here).
-               // The 'handleReProcess' function tries to ensure inputFile.files[0] is set if possible.
-               console.warn("Attempting to process without a direct file input, using stored original image name.");
+               console.warn("Attempting to process using stored original image name, as inputFile is empty.");
           }
 
-
           fetch('/process', { method: 'POST', body: formData })
-               .then(response => response.json())
+               .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+               })
                .then(data => {
                     if (data.error) { showError(data.error); resetToImageSelectedState(); return; }
                     currentTaskId = data.task_id;
                     appendLog(`Task ${currentTaskId} started for ${originalImageName}.`);
                     statusText.textContent = data.current_step_description || formatStatusText(data.status) || `Processing (Task ID: ${currentTaskId})`;
-                    if (data.original_uploaded_path) { originalComparisonImage.src = `/uploads/${data.original_uploaded_path}?t=${new Date().getTime()}`; }
-                    else if (originalImageObjectUrl) { originalComparisonImage.src = originalImageObjectUrl; }
+
+                    if (data.original_uploaded_path) {
+                         originalComparisonImage.src = `/uploads/${data.original_uploaded_path.replace(/\\/g, '/')}?t=${new Date().getTime()}`;
+                         console.log("Original comparison image set from server path:", originalComparisonImage.src);
+                    } else if (originalImageObjectUrl) {
+                         originalComparisonImage.src = originalImageObjectUrl;
+                         console.log("Original comparison image set from blob URL:", originalComparisonImage.src);
+                    }
                     startProgressCheck();
                })
                .catch(error => { console.error('Error submitting:', error); showError('Failed to start: ' + error.message); resetToImageSelectedState(); });
@@ -232,22 +295,18 @@ document.addEventListener('DOMContentLoaded', function () {
                alert("No image loaded to re-process.");
                return;
           }
-          if (inputFile.files.length === 0) {
-               // If the file input is empty, try to re-populate it (won't work for security reasons if it was cleared)
-               // Best approach is to just submit current form data if backend supports re-using original upload.
-               // Or prompt user to re-select if strict file upload is needed by backend.
-               console.log("Re-processing with current settings, assuming backend can use original upload.");
-          }
           handleSubmit();
      }
-
 
      function startProgressCheck() {
           if (progressInterval) clearInterval(progressInterval);
           progressInterval = setInterval(() => {
                if (!currentTaskId) { clearInterval(progressInterval); return; }
                fetch(`/progress/${currentTaskId}`)
-                    .then(response => response.json())
+                    .then(response => {
+                         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                         return response.json();
+                    })
                     .then(data => {
                          if (data.error) { showError(`Progress error: ${data.error}`); clearInterval(progressInterval); resetToImageSelectedState(); return; }
 
@@ -263,33 +322,33 @@ document.addEventListener('DOMContentLoaded', function () {
                          } else { tileProgressText.style.display = 'none'; }
 
                          if (data.status === 'completed') {
-                              clearInterval(progressInterval); showProcessingOverlay(false);
+                              clearInterval(progressInterval);
+                              showProcessingOverlay(false);
                               if (data.result_path) {
-                                   currentProcessedImagePath = `/outputs/${data.result_path}`;
-                                   displayedImage.src = `${currentProcessedImagePath}?t=${new Date().getTime()}`;
-                                   processedComparisonImage.src = `${currentProcessedImagePath}?t=${new Date().getTime()}`;
+                                   currentProcessedImageRelativePath = data.result_path.replace(/\\/g, '/');
+                                   currentFullProcessedImageUrl = `/outputs/${currentProcessedImageRelativePath}?t=${new Date().getTime()}`;
+                                   console.log("Processing complete. Processed image URL:", currentFullProcessedImageUrl);
 
-                                   let baseName = originalImageName;
-                                   const nameParts = originalImageName.split('.');
-                                   if (nameParts.length > 1) baseName = nameParts.slice(0, -1).join('.');
+                                   displayedImage.src = currentFullProcessedImageUrl;
+                                   processedComparisonImage.src = currentFullProcessedImageUrl;
 
-                                   let extension = "png";
-                                   const resultPathParts = data.result_path.split(/[\\/]/).pop().split('.');
-                                   if (resultPathParts.length > 1) extension = resultPathParts.pop();
+                                   let baseName = originalImageName.substring(0, originalImageName.lastIndexOf('.')) || originalImageName;
+                                   let extension = (currentProcessedImageRelativePath.split('.').pop() || 'png').toLowerCase();
 
-                                   downloadResultLink.href = currentProcessedImagePath;
+                                   downloadResultLink.href = currentFullProcessedImageUrl;
                                    downloadResultLink.download = `Enhanced_${baseName}.${extension}`;
                               } else {
                                    appendLog("[INFO] Main output not available for display.");
                                    showError("Processing finished, but no main output image was found for display.");
                                    hideResultActionsOverlay();
                                    displayedImage.src = originalImageObjectUrl || "#";
+                                   clearProcessedImageData();
                               }
                               submitBtn.disabled = false; startOverBtnMain.disabled = false;
                               switchToView('imageDisplayView');
                          } else if (data.status === 'error') {
                               clearInterval(progressInterval);
-                              showError(`Processing error: ${data.error || 'Unknown error occurred.'}`);
+                              showError(`Processing error: ${data.error_message || data.error || 'Unknown error occurred.'}`);
                               resetToImageSelectedState();
                          } else if (!data.thread_active && data.status !== 'completed' && data.status !== 'error') {
                               clearInterval(progressInterval);
@@ -307,84 +366,152 @@ document.addEventListener('DOMContentLoaded', function () {
      }
 
      function switchToView(viewId, forceExitSettings = false) {
+          console.log(`Switching to view: ${viewId}, forceExitSettings: ${forceExitSettings}, isSettingsActive: ${isSettingsActive}`);
+
           if (isSettingsActive && !forceExitSettings && !['settingsContentArea', 'errorDisplayArea'].includes(viewId)) {
                if (viewId === 'errorDisplayArea') {
                     const errorEl = document.getElementById(viewId);
                     if (errorEl) errorEl.classList.add('active');
+                    console.log(`${viewId} activated (over settings).`);
+               } else {
+                    console.log(`Attempted to switch to ${viewId} while settings active and not forced/allowed. No switch.`);
+                    return;
                }
-               return;
-          }
-          if (forceExitSettings && isSettingsActive) {
-               toggleSettingsMode();
-          }
-
-          ['initialView', 'imageDisplayView', 'comparisonView', 'errorDisplayArea', 'settingsContentArea'].forEach(id => {
-               const el = document.getElementById(id);
-               if (el) el.classList.remove('active');
-          });
-
-          const targetView = document.getElementById(viewId);
-          if (targetView) {
-               targetView.classList.add('active');
-          }
-
-          if (viewId !== 'imageDisplayView') {
-               showProcessingOverlay(false);
-               hideResultActionsOverlay();
-          }
-          if (viewId === 'comparisonView') {
-               if (comparisonView) comparisonView.style.display = 'flex';
           } else {
-               if (comparisonView) comparisonView.style.display = 'none';
+               if (forceExitSettings && isSettingsActive) {
+                    toggleSettingsMode();
+                    return;
+               }
+
+               ['initialView', 'imageDisplayView', 'comparisonView', 'errorDisplayArea', 'settingsContentArea'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                         el.classList.remove('active');
+                    }
+               });
+
+               const targetView = document.getElementById(viewId);
+               if (targetView) {
+                    targetView.classList.add('active');
+                    console.log(`${viewId} activated. Class list:`, targetView.classList.toString());
+               } else {
+                    console.error(`Target view "${viewId}" not found!`);
+               }
+          }
+
+          // Hide overlays unless explicitly on imageDisplayView (and not in settings)
+          // or comparisonView (where overlays are not relevant).
+          if (viewId !== 'imageDisplayView' || isSettingsActive) {
+               if (viewId !== 'comparisonView') { // Keep resultActionsOverlay potentially for comparison view if logic changes
+                    showProcessingOverlay(false);
+                    hideResultActionsOverlay();
+               } else {
+                    showProcessingOverlay(false); // Definitely hide processing for comparison
+               }
+          }
+          // Ensure processing overlay is off for these specific views
+          if (viewId === 'initialView' || viewId === 'comparisonView' || (isSettingsActive && viewId === 'settingsContentArea')) {
+               showProcessingOverlay(false);
           }
      }
 
 
-     function showProcessingOverlay(show) { if (processingOverlay) processingOverlay.style.display = show ? 'flex' : 'none'; }
-     function hideResultActionsOverlay() { if (imageDisplayView) imageDisplayView.classList.remove('actions-visible'); }
+     function showProcessingOverlay(show) {
+          if (processingOverlay) {
+               const newDisplay = show ? 'flex' : 'none';
+               if (processingOverlay.style.display !== newDisplay) {
+                    processingOverlay.style.display = newDisplay;
+                    console.log(`Processing overlay display set to: ${newDisplay}`);
+               }
+          }
+     }
+     function hideResultActionsOverlay() {
+          if (imageDisplayView && imageDisplayView.classList.contains('actions-visible')) {
+               imageDisplayView.classList.remove('actions-visible');
+               console.log("Result actions overlay hidden (actions-visible class removed).");
+          }
+     }
 
      function showComparisonView() {
-          if (!originalComparisonImage.src || originalComparisonImage.src.endsWith('#') || originalComparisonImage.src === window.location.href ||
-               !processedComparisonImage.src || processedComparisonImage.src.endsWith('#') || processedComparisonImage.src === window.location.href) {
-               showError("Cannot compare: Original or processed image is missing or invalid.");
+          console.log("Attempting to show comparison view.");
+          console.log("Original comparison src:", originalComparisonImage.src);
+          console.log("Processed comparison src:", processedComparisonImage.src);
+
+          const isValidHttpUrl = (string) => {
+               if (!string) return false;
+               try { new URL(string, window.location.origin); } catch (_) { return false; }
+               return string.startsWith('http:') || string.startsWith('https:') || string.startsWith('blob:') || string.startsWith('/');
+          }
+          const isPlaceholderSrc = (src) => !src || src.endsWith('#') || src === window.location.href || src === (new URL('#', window.location.href)).toString();
+
+          const originalSrcValid = isValidHttpUrl(originalComparisonImage.src) && !isPlaceholderSrc(originalComparisonImage.src);
+          const processedSrcValid = isValidHttpUrl(processedComparisonImage.src) && !isPlaceholderSrc(processedComparisonImage.src);
+
+          if (!originalSrcValid || !processedSrcValid) {
+               let missing = [];
+               if (!originalSrcValid) missing.push("original");
+               if (!processedSrcValid) missing.push("processed");
+               const errorMessage = `Cannot compare: The ${missing.join(' and ')} image source is missing or invalid.
+Original: ${originalComparisonImage.src} (Valid: ${originalSrcValid})
+Processed: ${processedComparisonImage.src} (Valid: ${processedSrcValid})`;
+               showError(errorMessage);
+               console.error(errorMessage);
                return;
           }
-          if (comparisonSliderElement) comparisonSliderElement.reset();
-          hideResultActionsOverlay();
-          comparisonView.classList.add('active');
-          comparisonView.style.display = 'flex';
+
+          if (comparisonSliderElement) {
+               comparisonSliderElement.setAttribute('value', '0.5');
+               console.log("Comparison slider 'value' attribute set to 0.5.");
+          } else {
+               console.warn("comparisonSliderElement not found when trying to show comparison view.");
+          }
+          hideResultActionsOverlay(); // Hide actions from main image view before switching
+          switchToView('comparisonView');
      }
+
      function hideComparisonView() {
-          comparisonView.classList.remove('active');
-          comparisonView.style.display = 'none';
+          console.log("Hiding comparison view.");
           switchToView('imageDisplayView');
      }
 
      function resetProcessingUIStates() {
           if (progressInterval) clearInterval(progressInterval); currentTaskId = null;
-          showProcessingOverlay(false); hideResultActionsOverlay();
+          showProcessingOverlay(false);
+          hideResultActionsOverlay();
           statusText.textContent = 'Status: Ready.'; progressBar.style.width = '0%'; progressBar.textContent = '0%';
           tileProgressText.style.display = 'none';
-          hideError(false);
           submitBtn.disabled = true; startOverBtnMain.disabled = true;
+          console.log("Processing UI states reset.");
      }
 
      function resetToImageSelectedState() {
-          showProcessingOverlay(false); hideResultActionsOverlay();
+          showProcessingOverlay(false);
+          hideResultActionsOverlay();
+          clearProcessedImageData();
+
           switchToView(originalImageObjectUrl ? 'imageDisplayView' : 'initialView', true);
           submitBtn.disabled = !originalImageObjectUrl;
           startOverBtnMain.disabled = !originalImageObjectUrl;
           if (progressInterval) clearInterval(progressInterval);
+          console.log("Reset to image selected state.");
      }
 
-     function resetToInitialState() { // Full UI reset
+     function resetToInitialState() {
+          console.log("Resetting to initial state.");
           if (isSettingsActive) toggleSettingsMode();
           if (originalImageObjectUrl) { URL.revokeObjectURL(originalImageObjectUrl); originalImageObjectUrl = null; }
-          currentProcessedImagePath = null; originalImageName = "image.png"; inputFile.value = '';
-          displayedImage.src = '#'; originalComparisonImage.src = '#'; processedComparisonImage.src = '#';
-          if (comparisonSliderElement) comparisonSliderElement.reset();
-          originalImageDimensions = { w: 0, h: 0 }; originalImageInfo.textContent = 'Original: ?x?';
+
+          clearProcessedImageData();
+          originalImageName = "image.png";
+          if (inputFile) inputFile.value = '';
+
+          if (displayedImage) displayedImage.src = '#';
+          if (originalComparisonImage) originalComparisonImage.src = '#';
+
+          originalImageDimensions = { w: 0, h: 0 };
+          if (originalImageInfo) originalImageInfo.textContent = 'Original: ?x?';
           updateUpscaledImageInfo();
+
           resetProcessingUIStates();
           switchToView('initialView');
           fetchConfigOptions();
@@ -392,14 +519,17 @@ document.addEventListener('DOMContentLoaded', function () {
                if (header.classList.contains('active')) {
                     header.classList.remove('active');
                     const content = header.nextElementSibling;
-                    content.style.maxHeight = "0px";
+                    if (content) content.style.maxHeight = "0px";
                }
           });
-          ['saveCropped', 'saveRestored', 'saveComparison'].forEach(id => { const cb = document.getElementById(id); if (cb) cb.checked = false; });
+          ['saveCropped', 'saveRestored', 'saveComparison'].forEach(id => {
+               const cb = document.getElementById(id); if (cb) cb.checked = false;
+          });
           currentLogBuffer = [];
           const fullLogOutputEl = settingsContentArea.querySelector('#fullLogOutput');
           if (fullLogOutputEl) fullLogOutputEl.innerHTML = '';
-          submitBtn.disabled = true; startOverBtnMain.disabled = true;
+          if (submitBtn) submitBtn.disabled = true;
+          if (startOverBtnMain) startOverBtnMain.disabled = true;
      }
 
      function appendLogToElement(message, element, isNew) {
@@ -414,38 +544,54 @@ document.addEventListener('DOMContentLoaded', function () {
           logEntry.classList.add(`log-level-${level}`);
           logEntry.textContent = message;
           element.appendChild(logEntry);
-          if (isNew || element === settingsContentArea.querySelector('#fullLogOutput')) {
+          if (isNew || (element === settingsContentArea.querySelector('#fullLogOutput') && element.scrollHeight > element.clientHeight)) {
                element.scrollTop = element.scrollHeight;
           }
      }
      function appendLog(message) {
           currentLogBuffer.push(message);
-          if (currentLogBuffer.length > 300) { currentLogBuffer.shift(); }
-          const fullLogOutputEl = activeSettingsTabContent?.querySelector('#fullLogOutput'); // Use active tab's log
+          if (currentLogBuffer.length > 300) {
+               currentLogBuffer.shift();
+          }
+          const fullLogOutputEl = activeSettingsTabContent?.querySelector('#fullLogOutput');
           if (fullLogOutputEl && isSettingsActive && activeSettingsTabContent?.id === 'settingsLogs') {
                appendLogToElement(message, fullLogOutputEl, true);
           }
      }
 
      function showError(message) {
+          console.error("UI Error Displayed:", message);
           errorText.textContent = message;
           showProcessingOverlay(false);
           hideResultActionsOverlay();
           switchToView('errorDisplayArea');
-          console.error("UI Error:", message);
-          appendLog(`[ERROR] UI: ${message}`);
      }
+
      function hideError(forceExitSettingsOnErrorHide = false) {
+          console.log(`Hiding error. forceExitSettings: ${forceExitSettingsOnErrorHide}, isSettingsActive: ${isSettingsActive}`);
+          const errorEl = document.getElementById('errorDisplayArea');
+          if (errorEl && errorEl.classList.contains('active')) {
+               errorEl.classList.remove('active');
+               console.log("Error display area deactivated.");
+          }
+
           if (isSettingsActive && !forceExitSettingsOnErrorHide) {
-               const errorEl = document.getElementById('errorDisplayArea');
-               if (errorEl) errorEl.classList.remove('active');
+               console.log("Error hidden, attempting to restore settings view if it was replaced.");
+               if (!document.getElementById('settingsContentArea').classList.contains('active')) {
+                    switchToView('settingsContentArea');
+               }
           } else {
-               switchToView(originalImageObjectUrl ? 'imageDisplayView' : 'initialView', true);
+               if (isSettingsActive && forceExitSettingsOnErrorHide) {
+                    toggleSettingsMode();
+               } else if (!isSettingsActive) {
+                    switchToView(originalImageObjectUrl ? 'imageDisplayView' : 'initialView');
+               }
           }
      }
 
      function toggleSettingsMode() {
           isSettingsActive = !isSettingsActive;
+          console.log(`Toggling settings mode. isSettingsActive is now: ${isSettingsActive}`);
           appContainer.classList.toggle('settings-mode-active');
 
           if (isSettingsActive) {
@@ -467,12 +613,10 @@ document.addEventListener('DOMContentLoaded', function () {
                ['initialView', 'imageDisplayView', 'comparisonView', 'errorDisplayArea'].forEach(id => {
                     const el = document.getElementById(id); if (el) el.classList.remove('active');
                });
-               hideResultActionsOverlay(); showProcessingOverlay(false);
 
-               settingsContentArea.classList.add('active'); // This is now a .view-panel
-               settingsContentArea.style.display = 'flex'; // Ensure it is flex
+               switchToView('settingsContentArea');
+
                settingsContentTitle.style.display = 'flex';
-
 
                const currentActiveNav = sidebarSettingsNavContainer.querySelector('.settings-nav-btn.active');
                if (currentActiveNav) { displaySettingsTab(currentActiveNav.dataset.targetTab); }
@@ -480,31 +624,39 @@ document.addEventListener('DOMContentLoaded', function () {
                     sidebarSettingsNavContainer.querySelector('.settings-nav-btn').click();
                }
                settingsBtn.innerHTML = '<i class="fas fa-arrow-left"></i>'; settingsBtn.title = "Back to Main View";
-          } else {
+          } else { // Exiting settings mode
                sidebarMainContent.style.display = 'flex';
                sidebarSettingsNavContainer.style.display = 'none';
-               settingsContentArea.classList.remove('active');
-               settingsContentArea.style.display = 'none';
                settingsContentTitle.style.display = 'none';
-
                switchToView(originalImageObjectUrl ? 'imageDisplayView' : 'initialView');
                settingsBtn.innerHTML = '<i class="fas fa-cog"></i>'; settingsBtn.title = "Settings";
           }
      }
 
      function displaySettingsTab(tabId) {
-          if (!settingsContentArea) return;
+          console.log(`Displaying settings tab: ${tabId}`);
+          if (!settingsContentArea) { console.error("settingsContentArea not found!"); return; }
+
           if (activeSettingsTabContent && activeSettingsTabContent.parentNode === settingsContentArea) {
                settingsContentArea.removeChild(activeSettingsTabContent);
           }
           activeSettingsTabContent = null;
+
           const tabContentClone = settingsTabsTemplate.querySelector(`#${tabId}`)?.cloneNode(true);
 
           if (tabContentClone) {
+               tabContentClone.classList.remove('active');
                settingsContentArea.appendChild(tabContentClone);
-               tabContentClone.classList.add('active');
                activeSettingsTabContent = tabContentClone;
 
+               if (tabId === 'settingsLogs') {
+                    const fullLogEl = activeSettingsTabContent.querySelector('#fullLogOutput');
+                    if (fullLogEl) {
+                         fullLogEl.innerHTML = '';
+                         currentLogBuffer.forEach(logMsg => appendLogToElement(logMsg, fullLogEl, false));
+                         fullLogEl.scrollTop = fullLogEl.scrollHeight;
+                    }
+               }
                if (tabId === 'settingsOutput') {
                     const btnSave = activeSettingsTabContent.querySelector('#saveOutputDirectoryBtn');
                     if (btnSave) btnSave.addEventListener('click', handleSaveOutputDirectory);
@@ -516,88 +668,139 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (btnRestart) btnRestart.addEventListener('click', handleRestartBackend);
                     if (btnClear) btnClear.addEventListener('click', handleClearBackendDirs);
                }
-               if (tabId === 'settingsSystemInfo') { fetchSystemInfo(); }
-               if (tabId === 'settingsLogs') {
-                    const fullLogEl = activeSettingsTabContent.querySelector('#fullLogOutput');
-                    if (fullLogEl) {
-                         fullLogEl.innerHTML = '';
-                         currentLogBuffer.forEach(logMsg => appendLogToElement(logMsg, fullLogEl, false));
-                         fullLogEl.scrollTop = fullLogEl.scrollHeight;
-                    }
+               if (tabId === 'settingsSystemInfo') {
+                    fetchSystemInfo();
                }
+          } else {
+               console.error(`Settings tab content for ID '${tabId}' not found in template.`);
+               settingsContentArea.innerHTML = `<p style="padding: 20px; text-align: center;">Error: Content for tab "${tabId}" could not be loaded.</p>`;
           }
      }
 
      function fetchSystemInfo() {
           const sysInfoContentEl = activeSettingsTabContent?.querySelector('#systemInfoContent');
-          if (!sysInfoContentEl) return;
+          if (!sysInfoContentEl) { console.warn("System info content element not found in active tab."); return; }
           sysInfoContentEl.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Loading system info...</p>';
-          fetch('/system_info').then(r => r.json()).then(data => {
-               if (data.error) { sysInfoContentEl.innerHTML = `<p>Error: ${data.error}</p>`; return; }
-               let html = `<p><strong>App Version:</strong> ${data.app_version}</p><p><strong>Python:</strong> ${data.python_version}</p><p><strong>PyTorch:</strong> ${data.torch_version}</p><p><strong>CUDA:</strong> ${data.cuda_available ? 'Yes' : 'No'}</p>`;
-               if (data.gpus && data.gpus.length > 0) html += `<p><strong>GPUs:</strong> ${data.gpus.join(', ')}</p>`;
-               html += `<p><strong>OS:</strong> ${data.os}</p><p><strong>CPU:</strong> ${data.cpu}</p><p><strong>RAM:</strong> ${data.ram}</p>`;
-               sysInfoContentEl.innerHTML = html;
-
-               const outputFolderDispEl = activeSettingsTabContent?.querySelector('#defaultOutputFolderDisplay');
-               const customOutputDirInputEl = activeSettingsTabContent?.querySelector('#customOutputDirectory');
-               if (outputFolderDispEl && data.default_output_folder) outputFolderDispEl.textContent = data.default_output_folder;
-               if (customOutputDirInputEl && data.default_output_folder && !customOutputDirInputEl.value) customOutputDirInputEl.value = data.default_output_folder;
-          }).catch(err => { sysInfoContentEl.innerHTML = `<p>Failed to fetch: ${err}</p>`; });
+          fetch('/system_info')
+               .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+               })
+               .then(data => {
+                    if (data.error) { sysInfoContentEl.innerHTML = `<p>Error: ${data.error}</p>`; return; }
+                    let html = `<p><strong>App Version:</strong> ${data.app_version || 'N/A'}</p>
+                           <p><strong>Python:</strong> ${data.python_version || 'N/A'}</p>
+                           <p><strong>PyTorch:</strong> ${data.torch_version || 'N/A'}</p>
+                           <p><strong>CUDA:</strong> ${data.cuda_available ? `Yes (Version: ${data.cuda_version || 'N/A'})` : 'No'}</p>`;
+                    if (data.gpus && data.gpus.length > 0) html += `<p><strong>GPUs:</strong> ${data.gpus.join(', ')}</p>`;
+                    else if (data.cuda_available) html += `<p><strong>GPUs:</strong> (None detected or PyTorch not seeing them)</p>`;
+                    html += `<p><strong>OS:</strong> ${data.os || 'N/A'}</p>
+                        <p><strong>CPU:</strong> ${data.cpu || 'N/A'}</p>
+                        <p><strong>RAM:</strong> Total: ${data.ram?.total || 'N/A'}, Available: ${data.ram?.available || 'N/A'}</p>`;
+                    sysInfoContentEl.innerHTML = html;
+               }).catch(err => {
+                    console.error("Failed to fetch system info:", err);
+                    sysInfoContentEl.innerHTML = `<p>Failed to fetch system info: ${err.message}</p>`;
+               });
      }
-
      function handleRestartBackend() {
           const restartStatusEl = activeSettingsTabContent?.querySelector('#restartStatus');
-          if (!confirm("Are you sure you want to attempt to restart the backend?")) return;
+          if (!confirm("Are you sure you want to attempt to restart the backend? This may interrupt ongoing tasks.")) return;
           if (restartStatusEl) restartStatusEl.textContent = "Attempting restart...";
-          fetch('/restart_backend', { method: 'POST' }).then(r => r.json()).then(data => {
-               if (restartStatusEl) restartStatusEl.textContent = data.message || "Restart command sent.";
-               alert((data.message || "Restart command sent.") + "\nA manual refresh might be needed.");
-          }).catch(err => { if (restartStatusEl) restartStatusEl.textContent = `Error: ${err}`; alert("Failed to send restart command."); });
+          fetch('/restart_backend', { method: 'POST' })
+               .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+               })
+               .then(data => {
+                    if (restartStatusEl) restartStatusEl.textContent = data.message || "Restart command sent.";
+                    alert((data.message || "Restart command sent.") + (data.success ? "\nThe application might reload or require a manual refresh shortly." : "\nRestart might have failed. Check server logs."));
+               }).catch(err => {
+                    console.error("Failed to send restart command:", err);
+                    if (restartStatusEl) restartStatusEl.textContent = `Error sending command: ${err.message}`;
+                    alert("Failed to send restart command to the backend.");
+               });
      }
-
      function loadCurrentOutputDirectory() {
           const customOutputDirInputEl = activeSettingsTabContent?.querySelector('#customOutputDirectory');
           const outputFolderDispEl = activeSettingsTabContent?.querySelector('#defaultOutputFolderDisplay');
           if (!customOutputDirInputEl && !outputFolderDispEl) return;
 
-          fetch('/get_output_directory').then(r => r.json()).then(data => {
-               if (data.output_directory) {
-                    if (customOutputDirInputEl) customOutputDirInputEl.value = data.output_directory;
-                    if (outputFolderDispEl) outputFolderDispEl.textContent = data.output_directory;
-               }
-          }).catch(err => console.error('Error fetching output dir:', err));
+          if (outputFolderDispEl) outputFolderDispEl.textContent = "Loading...";
+          fetch('/get_output_directory')
+               .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+               })
+               .then(data => {
+                    if (data.output_directory) {
+                         if (customOutputDirInputEl) customOutputDirInputEl.value = data.output_directory;
+                         if (outputFolderDispEl) outputFolderDispEl.textContent = data.output_directory;
+                    } else if (data.error) {
+                         if (outputFolderDispEl) outputFolderDispEl.textContent = `Error: ${data.error}`;
+                    } else {
+                         if (outputFolderDispEl) outputFolderDispEl.textContent = "N/A (Using default)";
+                    }
+               }).catch(err => {
+                    console.error('Error fetching output dir:', err);
+                    if (outputFolderDispEl) outputFolderDispEl.textContent = "Error fetching path.";
+               });
      }
-
      function handleSaveOutputDirectory() {
           const customOutputDirInputEl = activeSettingsTabContent?.querySelector('#customOutputDirectory');
           const outputDirStatusEl = activeSettingsTabContent?.querySelector('#outputDirStatus');
           if (!customOutputDirInputEl || !outputDirStatusEl) return;
           const newPath = customOutputDirInputEl.value.trim();
           if (!newPath) { outputDirStatusEl.textContent = 'Path cannot be empty.'; return; }
+
           outputDirStatusEl.textContent = 'Saving...';
-          fetch('/set_output_directory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ output_directory: newPath }) })
-               .then(r => r.json()).then(data => {
-                    if (data.error) { outputDirStatusEl.textContent = `Error: ${data.error}`; appendLog(`[ERROR] Set output dir: ${data.error}`); }
-                    else {
-                         outputDirStatusEl.textContent = data.message || 'Path saved!';
+          fetch('/set_output_directory', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ output_directory: newPath })
+          })
+               .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+               })
+               .then(data => {
+                    if (data.error) {
+                         outputDirStatusEl.textContent = `Error: ${data.error}`;
+                         appendLog(`[ERROR] Set output dir: ${data.error}`);
+                    } else {
+                         outputDirStatusEl.textContent = data.message || 'Path saved successfully!';
                          const outputFolderDispEl = activeSettingsTabContent?.querySelector('#defaultOutputFolderDisplay');
                          if (outputFolderDispEl && data.new_path) outputFolderDispEl.textContent = data.new_path;
-                         appendLog(`[INFO] Output directory set to: ${data.new_path}`);
-                         if (activeSettingsTabContent?.querySelector('#systemInfoContent')) { fetchSystemInfo(); }
+                         appendLog(`[INFO] Output directory set to: ${data.new_path || newPath}`);
                     }
-               }).catch(err => { outputDirStatusEl.textContent = 'Error saving.'; appendLog(`[ERROR] Set output dir: ${err}`); });
+               }).catch(err => {
+                    outputDirStatusEl.textContent = 'Error saving path. Check console/backend logs.';
+                    appendLog(`[ERROR] Set output dir failed: ${err}`);
+                    console.error("Error saving output directory:", err);
+               });
      }
-
      function handleClearBackendDirs() {
           const clearDirsStatusEl = activeSettingsTabContent?.querySelector('#clearDirsStatus');
-          if (!confirm("Clear ALL images from input/output dirs? IRREVERSIBLE.")) return;
-          if (clearDirsStatusEl) clearDirsStatusEl.textContent = 'Clearing...';
-          fetch('/clear_backend_dirs', { method: 'POST' }).then(r => r.json()).then(data => {
-               if (clearDirsStatusEl) clearDirsStatusEl.textContent = data.message || 'Clear cmd sent.';
-               appendLog(`[INFO] Clear backend: ${data.message}`);
-               if (data.errors && data.errors.length > 0) data.errors.forEach(e => appendLog(`[ERROR] Clear backend: ${e}`));
-          }).catch(err => { if (clearDirsStatusEl) clearDirsStatusEl.textContent = 'Error sending cmd.'; appendLog(`[ERROR] Clear backend: ${err}`); });
+          if (!confirm("DANGER! This will attempt to delete all images from the WebUI's temporary input and output folders on the server. This action is irreversible. Are you absolutely sure?")) return;
+          if (clearDirsStatusEl) clearDirsStatusEl.textContent = 'Clearing directories...';
+          fetch('/clear_backend_dirs', { method: 'POST' })
+               .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+               })
+               .then(data => {
+                    if (clearDirsStatusEl) clearDirsStatusEl.textContent = data.message || 'Clear command sent to backend.';
+                    appendLog(`[INFO] Clear backend dirs: ${data.message}`);
+                    if (data.errors && data.errors.length > 0) {
+                         data.errors.forEach(e => appendLog(`[ERROR] Clear backend dirs: ${e}`));
+                         alert("Some errors occurred while clearing directories. Check logs.\n" + data.errors.join("\n"));
+                    } else if (data.message) {
+                         alert(data.message);
+                    }
+               }).catch(err => {
+                    if (clearDirsStatusEl) clearDirsStatusEl.textContent = 'Error sending command.';
+                    appendLog(`[ERROR] Clear backend dirs failed: ${err}`);
+                    alert("Failed to send clear directories command to backend.");
+               });
      }
-     loadCurrentOutputDirectory();
 });
